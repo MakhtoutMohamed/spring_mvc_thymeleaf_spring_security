@@ -5,14 +5,14 @@ import com.vogdo.springmvcthymeleafspringsecurity.repository.ProductRepository;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+//
 
 import java.util.List;
 
@@ -22,9 +22,18 @@ public class ProductController {
     private ProductRepository productRepository;
     @GetMapping("/user/index")
     @PreAuthorize("hasRole('USER')")
-    public String index(Model model) {
-        List<Product> products = productRepository.findAll();
-        model.addAttribute("productsList", products);
+    public String index(Model model,
+                        @RequestParam(name = "page", defaultValue = "0") int page,
+                        @RequestParam(name = "size", defaultValue = "5") int size,
+                        @RequestParam(name = "keyword", defaultValue = "") String keyword) {
+        //List<Product> products = productRepository.findAll();
+        //model.addAttribute("productsList", products);
+        Page<Product> pageProducts = productRepository.findByNameContainingIgnoreCase(keyword, PageRequest.of(page, size));
+        model.addAttribute("productsList", pageProducts.getContent());
+        model.addAttribute("pages", new int[pageProducts.getTotalPages()]);
+        model.addAttribute("totalPages", pageProducts.getTotalPages());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("keyword", keyword);
         return "products";
     }
 
@@ -35,9 +44,11 @@ public class ProductController {
 
     @PostMapping("/admin/delete")
     @PreAuthorize("hasRole('ADMIN')")
-    public String delete(@RequestParam(name = "id") Long id){
+    public String delete(@RequestParam(name = "id") Long id,
+                         @RequestParam(name = "keyword", defaultValue = "") String keyword,
+                         @RequestParam(name = "page", defaultValue = "0") int page){
         productRepository.deleteById(id);
-        return  "redirect:/";
+        return "redirect:/user/index?page=" + page + "&keyword=" + keyword;
     }
 
     @GetMapping("/admin/newProduct")
@@ -49,19 +60,31 @@ public class ProductController {
 
     @PostMapping("/admin/saveProduct")
     @PreAuthorize("hasRole('ADMIN')")
-    public String saveProduct(@Valid Product product, BindingResult bindingResult, Model model) {
-        if (bindingResult.hasErrors()) return "new-product";
+    public String saveProduct(@Valid @ModelAttribute("product") Product product, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) return "edit-product";
         productRepository.save(product);
-        return "redirect:/";
+        return "redirect:/user/index";
     }
+
+    @GetMapping("/admin/editProduct")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String editProduct(@RequestParam(name = "id") Long id, Model model) {
+        Product product = productRepository.findById(id).orElse(null);
+        if (product == null) throw new RuntimeException("Produit introuvable");
+        model.addAttribute("product", product);
+        return "edit-product";
+    }
+
     @GetMapping("/notAuthorized")
     public String notAuthorized() {
         return "notAuthorized";
     }
+
     @GetMapping("/login")
     public String login() {
         return "login";
     }
+
     @GetMapping("/logout")
     public String logout(HttpSession session) {
         session.invalidate();

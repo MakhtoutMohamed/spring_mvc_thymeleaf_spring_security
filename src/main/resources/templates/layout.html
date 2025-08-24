@@ -44,6 +44,7 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown2" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <span sec:authentication="name"></span>
+                        <span class="badge bg-secondary" sec:authentication="principal.authorities"></span>
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" th:href="@{/logout}">Logout</a></li>
